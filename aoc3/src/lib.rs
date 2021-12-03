@@ -29,7 +29,7 @@ fn compute_dominant_bit(input: &Vec<String>, mask: &Vec<bool>) -> Vec<i32> {
 
 fn compute_rating(input: &Vec<String>, oxygen: bool) -> u64 {
     let mut mask = vec![true; input.len()]; // Start computation with all numbers included, progresively whittled down
-    let new_input: Vec<Vec<u8>> = input.iter().map(|val| val.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
+    let new_input: Vec<&[u8]> = input.iter().map(|val| val.as_bytes()).collect::<Vec<&[u8]>>();
     let mut j: usize = 0; // Current bit index
     while mask.iter().map(|val| if *val {1} else {0}).sum::<u32>() > 1 {
         let res = compute_dominant_bit(input, &mask);
