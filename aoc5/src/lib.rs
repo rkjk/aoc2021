@@ -2,7 +2,7 @@ use std::io::{BufReader, Error, ErrorKind};
 use std::io::prelude::*;
 use std::fs::File;
 use std::cmp::{min, max};
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 fn read_input(filename: &str) -> Result<Vec<String>, Error> {
     let f = File::open(filename).unwrap();
@@ -13,7 +13,7 @@ fn read_input(filename: &str) -> Result<Vec<String>, Error> {
 type Segment= ((usize, usize), (usize, usize));
 
 /// Consider all horizontal/vertical line segments and compute number of points of intersection
-fn hv_intersect(input: &Vec<Segment>) -> usize {
+fn hv_intersect(input: &Vec<Segment>, diagonal: bool) -> usize {
     let mut points: HashSet<(usize, usize)> = HashSet::new(); // Intersecting points
     for i in 0..input.len() {
         for j in i+1..input.len() {
@@ -49,8 +49,45 @@ fn hv_intersect(input: &Vec<Segment>) -> usize {
             }
         }
     }
-    //println!("{:?}", points);
     points.len()
+}
+
+fn dumb_compute(input: &Vec<Segment>) -> usize {
+    let mut points: HashMap<(usize, usize), usize> = HashMap::new(); // Intersecting points
+    for i in 0..input.len() {
+        let (x1, y1) = input[i].0;
+        let (x2, y2) = input[i].1;
+
+        if x1 == x2 {
+            let range = match y1 < y2 {
+                true => y1..y2+1,
+                false => y2..y1+1,
+            };
+            for y in range {
+                let ch = points.entry((x1, y)).or_insert(0);
+                *ch += 1;
+            }
+            continue;
+        }
+        if y1 == y2 {
+            for x in x1..x2+1 {
+                let ch = points.entry((x, y1)).or_insert(0);
+                *ch += 1;
+            }
+            continue;
+        }
+
+        let m1 = (y2 as i32 - y1 as i32) / (x2 as i32 - x1 as i32);
+        let c1 = y1 as i32 - m1 * (x1 as i32);
+
+        for x in x1..x2+1 {
+            let y = (m1 * x as i32 + c1) as usize;
+            let ch = points.entry((x, y)).or_insert(0);
+            *ch += 1;
+        }
+    }
+    points.retain(|_, v| *v > 1);
+    points.iter().filter(|&(k, v)| *v > 1).count()
 }
 
 fn parse_segments(input: Vec<String>) -> Vec<Segment> {
@@ -73,12 +110,14 @@ mod tests {
     #[test]
     fn example() {
         let input = parse_segments(read_input("example").unwrap());
-        println!("Part1: {}", hv_intersect(&input));
+        println!("Part1: {}", hv_intersect(&input, false));
+        println!("Part2: {}", dumb_compute(&input));
     }
 
     #[test]
     fn actual() {
         let input = parse_segments(read_input("input").unwrap());
-        println!("Part1: {}", hv_intersect(&input));
+        println!("Part1: {}", hv_intersect(&input, false));
+        println!("Part2: {}", dumb_compute(&input));
     }
 }
