@@ -37,22 +37,10 @@ fn dijkstra(grid: &Vec<Vec<i32>>) -> i32 {
     };
 
     let mut heap = BinaryHeap::new();
-    for i in 0..grid.len() {
-        for j in 0..grid[0].len() {
-            if i == 0 && j == 0 {
-                heap.push((0, (0, 0)));
-            } else {
-                heap.push((i32::MIN, (i, j)));
-            }
-        }
-    }
+    heap.push((0, (0, 0)));
     
     while !heap.is_empty() {
         let (cost, coord) = heap.pop().unwrap();
-        //println!("{}", cost);
-        if cost == i32::MIN {
-            break;
-        }
         let cost: i32 = cost * -1;
         let (i, j) = coord;
 
