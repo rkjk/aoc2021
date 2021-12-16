@@ -3,7 +3,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::iter::FromIterator;
 use std::cmp::min;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, BinaryHeap};
 
 fn read_input(filename: &str) -> Result<Vec<String>, Error> {
     let f = File::open(filename).unwrap();
@@ -13,6 +13,57 @@ fn read_input(filename: &str) -> Result<Vec<String>, Error> {
 
 fn parse_input(input: &Vec<String>) -> Vec<Vec<i32>> {
     input.iter().map(|row| row.chars().map(|c| c.to_digit(10).unwrap() as i32).collect()).collect()
+}
+
+fn dijkstra(grid: &Vec<Vec<i32>>) -> i32 {
+    let mut min_cost = vec![vec![i32::MAX; grid[0].len()]; grid.len()];
+    min_cost[0][0] = 0;
+
+    let neighbors = |i, j| {
+        let mut res = vec![];
+        if i < grid.len() - 1 {
+            res.push((i + 1, j));
+        }
+        if i > 0 {
+            res.push((i - 1, j));
+        }
+        if j > 0 {
+            res.push((i, j - 1));
+        }
+        if j < grid[0].len() - 1 {
+            res.push((i, j + 1));
+        }
+        res
+    };
+
+    let mut heap = BinaryHeap::new();
+    for i in 0..grid.len() {
+        for j in 0..grid[0].len() {
+            if i == 0 && j == 0 {
+                heap.push((0, (0, 0)));
+            } else {
+                heap.push((i32::MIN, (i, j)));
+            }
+        }
+    }
+    
+    while !heap.is_empty() {
+        let (cost, coord) = heap.pop().unwrap();
+        //println!("{}", cost);
+        if cost == i32::MIN {
+            break;
+        }
+        let cost: i32 = cost * -1;
+        let (i, j) = coord;
+
+        for (x, y) in neighbors(i, j) {
+            if cost + grid[x][y] < min_cost[x][y] {
+                min_cost[x][y] = cost + grid[x][y];
+                heap.push((-1 * min_cost[x][y], (x, y)));
+            }
+        }
+    }
+    min_cost[grid.len() - 1][grid[0].len() - 1]
 }
 
 fn bfs(grid: &Vec<Vec<i32>>) -> i32 {
@@ -75,7 +126,8 @@ mod tests {
         let grid = parse_input(&read_input("example").unwrap());
         println!("Part1: {}", bfs(&grid));
         let new_grid = get_tiles(&grid);
-        println!("Part2: {}", bfs(&new_grid));
+        //println!("Part2: {}", bfs(&new_grid));
+        println!("Part2 Dijkstra: {}", dijkstra(&new_grid));
     }
 
     #[test]
@@ -83,6 +135,7 @@ mod tests {
         let grid = parse_input(&read_input("input").unwrap());
         println!("Part1: {}", bfs(&grid));
         let new_grid = get_tiles(&grid);
-        println!("Part2: {}", bfs(&new_grid));
+        //println!("Part2: {}", bfs(&new_grid));
+        println!("Part2 Dijkstra: {}", dijkstra(&new_grid));
     }
 }
