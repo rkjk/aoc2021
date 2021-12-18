@@ -29,62 +29,79 @@ fn binary_to_decimal(binary: &[u8]) -> usize {
     res.into()
 }
 
-fn control_loop(packet: &Vec<u8>) -> usize {
-    let mut cur_index = 0;
-    let mut version = 0;
-    let (ind, number) = process_packet(packet, cur_index);
-    version += number;
-    cur_index = ind;
-    println!("cur_version: {}", version);
-    version
+// Return version and result
+fn control_loop(packet: &Vec<u8>) -> (usize, usize) {
+    let (ind, version, result) = process_packet(packet, 0);
+    (version, result)
 }
 
-// Process packet starting at start_index: Return end_index and version of the packet
-fn process_packet(packet: &Vec<u8>, start_index: usize) -> (usize, usize) {
+// Process packet starting at start_index: Return end_index, version of the packet, and result of operation
+fn process_packet(packet: &Vec<u8>, start_index: usize) -> (usize, usize, usize) {
     let mut cur_index = start_index;
-    println!("Processing packet from index {}", cur_index);
     let mut version = binary_to_decimal(&packet[cur_index..(cur_index+3)]);
     cur_index += 3;
     let type_id = binary_to_decimal(&packet[cur_index..(cur_index+3)]);
     cur_index += 3;
-    println!("version: {} type_id {}", version, type_id);
     // Literal value
     if type_id == 4 {
         let (ind, number) = process_literal(packet, cur_index);
         cur_index = ind;
-        return (cur_index, version);
+        return (cur_index, version, number);
     }
     let length_type_id = packet[cur_index];
     cur_index += 1;
 
+    let mut subpackets = vec![];
     // Length Type Id = 0
     if length_type_id == 0 {
         let subpacket_length = binary_to_decimal(&packet[cur_index..(cur_index + 15)]);
         cur_index += 15;
         let orig_index = cur_index;
         loop {
-            let (ind, number) = process_packet(packet, cur_index);
-            version += number;
+            let (ind, ver, number) = process_packet(packet, cur_index);
+            subpackets.push(number);
+            version += ver;
             cur_index = ind;
             if cur_index - orig_index == subpacket_length {
                 break;
             }
         }
-        return (cur_index, version);
     }
-    // Length type ID = 1
-    let num_subpackets = binary_to_decimal(&packet[cur_index..(cur_index + 11)]);
-    cur_index += 11;
-    for _ in 0..num_subpackets {
-        let (ind, number) = process_packet(packet, cur_index);
-        version += number;
-        cur_index = ind;
+    else
+    {
+        // Length type ID = 1
+        let num_subpackets = binary_to_decimal(&packet[cur_index..(cur_index + 11)]);
+        cur_index += 11;
+        for _ in 0..num_subpackets {
+            let (ind, ver, number) = process_packet(packet, cur_index);
+            subpackets.push(number);
+            version += ver;
+            cur_index = ind;
+        }
     }
-    (cur_index, version)
+    let result = match type_id {
+        0 => subpackets.into_iter().sum::<usize>(),
+        1 => subpackets.into_iter().product(),
+        2 => subpackets.into_iter().min().unwrap(),
+        3 => subpackets.into_iter().max().unwrap(),
+        5 => match subpackets[0] > subpackets[1] {
+            true => 1,
+            false => 0,
+        },
+        6 => match subpackets[0] < subpackets[1] {
+            true => 1,
+            false => 0,
+        },
+        7 => match subpackets[0] == subpackets[1] {
+            true => 1,
+            false => 0,
+        },
+        _ => panic!("Unexpected type_id {}", type_id),
+    };
+    (cur_index, version, result)
 }
 
 fn process_literal(packet: &Vec<u8>, start_index: usize) -> (usize, usize) {
-    println!("Processing literal from index: {}", start_index);
     let mut cur_index = start_index;
     let mut num = vec![];
     loop {
@@ -96,7 +113,6 @@ fn process_literal(packet: &Vec<u8>, start_index: usize) -> (usize, usize) {
         }
     }
     let val = binary_to_decimal(&num);
-    println!("Array: {:?} Literal: {}", num, val);
     (cur_index, val)
 }
 
@@ -109,16 +125,18 @@ mod tests {
         let mut result = vec![];
         for (i, input) in strings.iter().enumerate() {
             let val = get_binary(input);
-            println!("{:?} {}", input, val.len());
             result.push(control_loop(&val));
-            //println!("Input {} {}", i, control_loop(&val));
         }
-        println!("{:?}", result);
+        for (i, val1) in strings.iter().enumerate() {
+            println!("Part1: Input: {:?} Part1: {} Part2: {}", val1, result[i].0, result[i].1);
+        }
+        
     }
 
     #[test]
     fn actual() {
         let input = get_binary(&read_input("input").unwrap()[0]);
-        println!("Part1: {}", control_loop(&input));
+        let result = control_loop(&input);
+        println!("Part1: {} Part2: {}", result.0, result.1);
     }
 }
