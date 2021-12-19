@@ -1,6 +1,7 @@
 use std::io::{BufReader, Error, ErrorKind};
 use std::io::prelude::*;
 use std::fs::File;
+use std::cmp::max;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Pl {
@@ -52,6 +53,7 @@ fn add(v1: &Vec<Pl>, v2: &Vec<Pl>) -> Vec<Pl> {
     res
 }
 
+/// At any time, explode has priority over split, and only one operation is done in a turn. 
 fn reduce(pair: Vec<Pl>) -> Vec<Pl> {
     //let mut stack = vec![];
     let mut value = pair;
@@ -77,7 +79,6 @@ fn reduce(pair: Vec<Pl>) -> Vec<Pl> {
         }
     }
     while explode_count > 0 || split_count > 0 {
-        //let stack_val = stack.pop().unwrap();
         let mut new_val = vec![]; // New value of expression after performing operation
 
         //println!("Oldval: {:?}", value);
@@ -97,7 +98,6 @@ fn reduce(pair: Vec<Pl>) -> Vec<Pl> {
                         let mut num = v;
                         num += add;
                         if num >= 10 {
-                            //stack.push(Op::Split);
                             split_count += 1;
                         }
                         //println!("Explode op2 index {} num {}", i, num);
@@ -131,7 +131,6 @@ fn reduce(pair: Vec<Pl>) -> Vec<Pl> {
                                         new_val[ind] = Pl::Num(vv + left_val);
                                         //println!("Explode op1 index {} num {}", ind, vv + left_val);
                                         if vv + left_val >= 10 {
-                                            //stack.push(Op::Split);
                                             split_count += 1;
                                         }
                                     }
@@ -182,7 +181,6 @@ fn reduce(pair: Vec<Pl>) -> Vec<Pl> {
                             let num = (v as f32) / 2.0;
                             let split_val = [num.floor() as u32, num.ceil() as u32];
                             if brace_count == 4 {
-                                //stack.push(Op::Explode);
                                 explode_count += 1;
                             }
                             new_val.push(Pl::Left);
@@ -240,6 +238,21 @@ mod tests {
     }
 
     #[test]
+    fn examples_part2() {
+        let mut input = parse_input(read_input("example").unwrap());
+        let mut maxval = 0;
+        for i in 0..input.len() {
+            for j in 0..input.len() {
+                if i == j {
+                    continue;
+                }
+                let added = add(&input[i], &input[j]);
+                maxval = max(maxval, magnitude(&reduce(added)));
+            }
+        }
+        println!("Part2 example {}", maxval);
+    }
+
     fn example() {
         let mut input = parse_input(read_input("example").unwrap());
         let mut val = input.remove(0);
@@ -249,7 +262,7 @@ mod tests {
             //println!("{:?}", val);
             //println!("");
         }
-        println!("Part1: example {}", magnitude(&val));
+        //println!("Part1: example {}", magnitude(&val));
     }
 
     #[test]
@@ -257,11 +270,6 @@ mod tests {
         let mut input = parse_input(read_input("reduce1").unwrap());
         //println!("{:?}", reduce(input.remove(0)));
         //println!("test output {:?}", reduce(input.remove(1)));
-    }
-
-    #[test]
-    fn elample2() {
-        let input = parse_input(read_input("example2").unwrap());
     }
 
     #[test]
@@ -275,5 +283,21 @@ mod tests {
             //println!("");
         }
         println!("Part1 actual: {}", magnitude(&val));
+    }
+
+    #[test]
+    fn actual_part2() {
+        let mut input = parse_input(read_input("input").unwrap());
+        let mut maxval = 0;
+        for i in 0..input.len() {
+            for j in 0..input.len() {
+                if i == j {
+                    continue;
+                }
+                let added = add(&input[i], &input[j]);
+                maxval = max(maxval, magnitude(&reduce(added)));
+            }
+        }
+        println!("Part2 actual: {}", maxval);
     }
 }
