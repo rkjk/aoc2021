@@ -1,16 +1,12 @@
 use std::collections::{HashMap, BinaryHeap};
-use std::cmp::{Ordering, min};
+use std::cmp::{Ordering, min, max};
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 enum Pod {
-    A1,
-    A2,
-    B1,
-    B2,
-    C1,
-    C2,
-    D1,
-    D2
+    A,
+    B,
+    C,
+    D
 }
 
 #[derive(Debug, Eq, Hash, Copy, Clone)]
@@ -76,10 +72,10 @@ fn dijkstra(mut start: [Option<Pod>; 8]) -> i64 {
             return false;
         }
         match pod.unwrap() {
-            Pod::A1 | Pod::A2 => room_no == 0 || room_no == 1,
-            Pod::B1 | Pod::B2 => room_no == 2 || room_no == 3,
-            Pod::C1 | Pod::C2 => room_no == 4 || room_no == 5,
-            Pod::D1 | Pod::D2 => room_no == 6 || room_no == 7
+            Pod::A => room_no == 0 || room_no == 1,
+            Pod::B => room_no == 2 || room_no == 3,
+            Pod::C => room_no == 4 || room_no == 5,
+            Pod::D => room_no == 6 || room_no == 7
         }
     };
     let reached_end = |rooms: &[Option<Pod>; 8]| -> bool {
@@ -87,27 +83,117 @@ fn dijkstra(mut start: [Option<Pod>; 8]) -> i64 {
     };
     let right_room = |pod: &Pod| -> [usize; 2] {
         match pod {
-            Pod::A1 | Pod::A2 => [0, 1],
-            Pod::B1 | Pod::B2 => [2, 3],
-            Pod::C1 | Pod::C2 => [4, 5],
-            Pod::D1 | Pod::D2 => [6, 7],
+            Pod::A => [0, 1],
+            Pod::B => [2, 3],
+            Pod::C => [4, 5],
+            Pod::D => [6, 7],
         }
     };
     let right_bottom_room = |pod: &Pod, room_no| -> bool {
         match pod {
-            Pod::A1 | Pod::A2 => room_no == 1,
-            Pod::B1 | Pod::B2 => room_no == 3,
-            Pod::C1 | Pod::C2 => room_no == 5,
-            Pod::D1 | Pod::D2 => room_no == 7,
+            Pod::A => room_no == 1,
+            Pod::B => room_no == 3,
+            Pod::C => room_no == 5,
+            Pod::D => room_no == 7,
         }
     };
     let get_cost = |pod: &Pod| -> i64 {
         match pod {
-            Pod::A1 | Pod::A2 => 1,
-            Pod::B1 | Pod::B2 => 10,
-            Pod::C1 | Pod::C2 => 100,
-            Pod::D1 | Pod::D2 => 1000,
+            Pod::A => 1,
+            Pod::B => 10,
+            Pod::C => 100,
+            Pod::D => 1000,
         }
+    };
+    // Check if path between room and hall is free, including the room or hall
+    // If to_room flag is set, check if the room is empty
+    // If to_hall flag is set, check if hall is empty
+    // Always go from room to hall even if the orig operation is hall->room. 
+    // The booleans ensure that the destination is free and the rest of the path is the same
+    fn can_move_room_hallway(room_no: usize, hall_no: usize, state: &State, to_room: bool, to_hall: bool) -> bool {
+        let mut left;
+        let mut right;
+        if to_room && !state.rooms[room_no].is_none() || to_hall && !state.hallway[hall_no].is_none() {
+            return false;
+        }
+        if room_no == 0 || room_no == 1 {
+            left = vec![0, 1];
+            right = vec![2, 3, 4, 5, 6];
+        }
+        else if room_no == 2 || room_no == 3 {
+            left = vec![0, 1, 2];
+            right = vec![3, 4, 5, 6];
+        }
+        else if room_no == 4 || room_no == 5 {
+            left = vec![0, 1, 2, 3];
+            right = vec![4, 5, 6];
+        }
+        else {
+            left = vec![0, 1, 2, 3, 4];
+            right = vec![5, 6];
+        }
+        // If bottom room, check that move from top-room to hall is possible and top room is empty
+        if room_no == 1 || room_no == 3 || room_no == 5 || room_no == 7 {
+            return can_move_room_hallway(room_no - 1, hall_no, state, to_room, to_hall) && state.rooms[room_no - 1].is_none();
+        }
+        left.reverse();
+        if left.contains(&hall_no) {
+            for val in left {
+                if val == hall_no {
+                    break;
+                }
+                if !state.hallway[val].is_none() {
+                    return false;
+                }
+            }
+        }
+        if right.contains(&hall_no) {
+            for val in right {
+                if val == hall_no {
+                    break;
+                }
+                if !state.hallway[val].is_none() {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    // Check if room-room move is possible
+    // First check if destination room is free
+    // Then check if room->temp-hall and temp-hall->room is possible
+    let can_move_room_room = |room_no1: usize, room_no2: usize, state: &State| -> bool {
+        let hallway = [2, 3, 4];
+        // Check if destination room is empty
+        if !state.rooms[room_no2].is_none() {
+            return false;
+        }
+        let (small_room, big_room) = (min(room_no1, room_no2), max(room_no1, room_no2));
+        let mut temp_hall = 0;
+        if small_room <= 1 {
+            if big_room <= 3 {
+                temp_hall = 2;
+            }
+            else if big_room <= 5 {
+                temp_hall = 3;
+            }
+            else {
+                temp_hall = 4;
+            }
+        }
+        else if small_room <= 3 {
+            if big_room <= 5 {
+                temp_hall = 3;
+            }
+            else {
+                temp_hall = 4;
+            }
+        }
+        else {
+            temp_hall = 4;
+        }
+        return can_move_room_hallway(small_room, temp_hall, state, false, true) && can_move_room_hallway(big_room, temp_hall, state, false, true);
     };
 
     let mut state_space: HashMap<State, i64> = HashMap::new();
@@ -122,8 +208,6 @@ fn dijkstra(mut start: [Option<Pod>; 8]) -> i64 {
         let (cost, state) = heap.pop().unwrap();
         let cost = -1 * cost; // Since this is a max-heap we need to negate
         if reached_end(&state.rooms) {
-            println!("Reached end-config {:?}", state);
-            println!("Cost: {}", cost);
             min_val = min(min_val, cost);
             continue;
         }
@@ -138,7 +222,7 @@ fn dijkstra(mut start: [Option<Pod>; 8]) -> i64 {
             }
             for room_no in right_room(&room.unwrap()) {
                 // Right Room is not empty
-                if !state.rooms[room_no].is_none() {
+                if !can_move_room_room(i, room_no, &state) {
                     continue;
                 }
                 let mut new_rooms = state.rooms.clone();
@@ -162,7 +246,7 @@ fn dijkstra(mut start: [Option<Pod>; 8]) -> i64 {
                 continue;
             }
             for room_no in right_room(&hall.unwrap()) {
-                if !state.rooms[room_no].is_none() {
+                if !can_move_room_hallway(room_no, hall_no, &state, true, false) {
                     continue;
                 }
                 let mut new_rooms = state.rooms.clone();
@@ -187,7 +271,7 @@ fn dijkstra(mut start: [Option<Pod>; 8]) -> i64 {
                 continue;
             }
             for (hall_no, hall) in state.hallway.iter().enumerate() {
-                if !hall.is_none() {
+                if !can_move_room_hallway(room_no, hall_no, &state, false, true) {
                     continue;
                 }
                 let mut new_rooms = state.rooms.clone();
@@ -214,6 +298,11 @@ mod tests {
     use super::*;
     #[test]
     fn example() {
-        println!("Part1: {}", dijkstra([Some(Pod::B1), Some(Pod::A1), Some(Pod::C1), Some(Pod::D1), Some(Pod::B2), Some(Pod::C2), Some(Pod::D2), Some(Pod::A2)]));
+        println!("Part1: {}", dijkstra([Some(Pod::B), Some(Pod::A), Some(Pod::C), Some(Pod::D), Some(Pod::B), Some(Pod::C), Some(Pod::D), Some(Pod::A)]));
+    }
+
+    #[test]
+    fn actual() {
+        println!("Part1: {}", dijkstra([Some(Pod::D), Some(Pod::C), Some(Pod::B), Some(Pod::A), Some(Pod::D), Some(Pod::A), Some(Pod::B), Some(Pod::C)]));
     }
 }
